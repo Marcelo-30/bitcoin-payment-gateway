@@ -11,7 +11,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.web.server.ResponseStatusException;
+import com.bitcoinpaymentgateway.backend.error.ResourceNotFoundException;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -144,8 +144,12 @@ class PaymentServiceTest {
                 when(paymentRepository.findById(id))
                                 .thenReturn(Optional.empty());
 
-                assertThrows(
-                                ResponseStatusException.class,
+                ResourceNotFoundException exception = assertThrows(
+                                ResourceNotFoundException.class,
                                 () -> paymentService.getPayment(id));
+
+                assertEquals(
+                                "Payment not found: " + id,
+                                exception.getMessage());
         }
 }

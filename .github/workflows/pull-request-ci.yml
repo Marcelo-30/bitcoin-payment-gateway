@@ -1,0 +1,113 @@
+name: Pull Request CI
+
+on:
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pull-request-ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend checks
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+
+        env:
+          POSTGRES_DB: bitcoin_payment_gateway
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+
+        ports:
+          - 5432:5432
+
+        options: >-
+          --health-cmd "pg_isready -U postgres -d bitcoin_payment_gateway"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DB_URL: jdbc:postgresql://localhost:5432/bitcoin_payment_gateway
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Java 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+          cache-dependency-path: backend/pom.xml
+
+      - name: Grant Maven Wrapper permission
+        run: chmod +x mvnw
+
+      - name: Compile backend
+        run: ./mvnw --batch-mode --no-transfer-progress -DskipTests compile
+
+      - name: Run backend tests and Flyway migrations
+        run: ./mvnw --batch-mode --no-transfer-progress test
+
+  frontend:
+    name: Frontend checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Detect frontend
+        id: frontend
+        shell: bash
+        run: |
+          if [ -f frontend/package.json ]; then
+            echo "available=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "available=false" >> "$GITHUB_OUTPUT"
+            echo "Frontend is not available yet. Skipping frontend checks."
+          fi
+
+      - name: Set up Node.js
+        if: steps.frontend.outputs.available == 'true'
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+
+      - name: Install frontend dependencies
+        if: steps.frontend.outputs.available == 'true'
+        working-directory: frontend
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install --no-audit --no-fund
+          fi
+
+      - name: Build frontend
+        if: steps.frontend.outputs.available == 'true'
+        working-directory: frontend
+        run: npm run build
+
+      - name: Run frontend tests
+        if: steps.frontend.outputs.available == 'true'
+        working-directory: frontend
+        env:
+          CI: "true"
+        run: npm run test --if-present

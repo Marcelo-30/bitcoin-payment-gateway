@@ -2,15 +2,15 @@ package com.bitcoinpaymentgateway.backend.controller;
 
 import com.bitcoinpaymentgateway.backend.domain.PaymentStatus;
 import com.bitcoinpaymentgateway.backend.dto.PaymentResponse;
+import com.bitcoinpaymentgateway.backend.error.ResourceNotFoundException;
 import com.bitcoinpaymentgateway.backend.service.PaymentService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.web.server.ResponseStatusException;
+
 
 import java.time.Instant;
 import java.util.UUID;
@@ -134,10 +134,14 @@ class PaymentControllerTest {
                 UUID paymentId = UUID.randomUUID();
 
                 when(paymentService.getPayment(paymentId))
-                                .thenThrow(new ResponseStatusException(
-                                                HttpStatus.NOT_FOUND, "Payment not found"));
+                                .thenThrow(new ResourceNotFoundException(
+                                                "Payment not found: " + paymentId));
 
                 mockMvc.perform(get("/api/payments/{id}", paymentId))
-                                .andExpect(status().isNotFound());
+                                .andExpect(status().isNotFound())
+                                .andExpect(jsonPath("$.status").value(404))
+                                .andExpect(jsonPath("$.error").value("Not Found"))
+                                .andExpect(jsonPath("$.message")
+                                                .value("Payment not found: " + paymentId));
         }
 }
