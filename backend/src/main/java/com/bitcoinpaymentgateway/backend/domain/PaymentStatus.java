@@ -1,4 +1,7 @@
 package com.bitcoinpaymentgateway.backend.domain;
 
-public class PaymentStatus {
+public enum PaymentStatus {
+    PENDING,
+    PAID,
+    EXPIRED
 }
