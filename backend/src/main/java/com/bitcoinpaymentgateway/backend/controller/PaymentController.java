@@ -13,55 +13,49 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/payments")
 @RequiredArgsConstructor
-@Tag(
-        name = "Payments",
-        description = "Operations for Bitcoin payment requests"
-)
+@Tag(name = "Payments", description = "Operations for Bitcoin payment requests")
 public class PaymentController {
 
-    private final PaymentService paymentService;
+        private final PaymentService paymentService;
 
-    @PostMapping
-    @Operation(
-            summary = "Create a payment request",
-            description = """
-                    Creates a simulated Bitcoin payment request,
-                    assigns a testnet address and sets the initial
-                    status to PENDING.
-                    """
-    )
-    @ApiResponses({
-            @ApiResponse(
-                    responseCode = "201",
-                    description = "Payment request created successfully",
-                    content = @Content(
-                            schema = @Schema(
-                                    implementation = PaymentResponse.class
-                            )
-                    )
-            ),
-            @ApiResponse(
-                    responseCode = "400",
-                    description = "Invalid payment amount",
-                    content = @Content
-            )
-    })
-    public ResponseEntity<PaymentResponse> createPayment(
-            @Valid @RequestBody CreatePaymentRequest request
-    ) {
-        PaymentResponse response =
-                paymentService.createPayment(request);
+        @PostMapping
+        @Operation(summary = "Create a payment request", description = """
+                        Creates a simulated Bitcoin payment request,
+                        assigns a testnet address and sets the initial
+                        status to PENDING.
+                        """)
+        @ApiResponses({
+                        @ApiResponse(responseCode = "201", description = "Payment request created successfully", content = @Content(schema = @Schema(implementation = PaymentResponse.class))),
+                        @ApiResponse(responseCode = "400", description = "Invalid payment amount", content = @Content)
+        })
+        public ResponseEntity<PaymentResponse> createPayment(
+                        @Valid @RequestBody CreatePaymentRequest request) {
+                PaymentResponse response = paymentService.createPayment(request);
 
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(response);
-    }
+                return ResponseEntity
+                                .status(HttpStatus.CREATED)
+                                .body(response);
+        }
+
+        @GetMapping("/{id}")
+        @Operation(summary = "Get a payment by id", description = "Retrieves a payment and resolves its expiration status if needed.")
+        @ApiResponses({
+                        @ApiResponse(responseCode = "200", description = "Payment found"),
+                        @ApiResponse(responseCode = "404", description = "Payment not found", content = @Content)
+        })
+        public ResponseEntity<PaymentResponse> getPayment(@PathVariable UUID id) {
+                PaymentResponse response = paymentService.getPayment(id);
+                return ResponseEntity.ok(response);
+        }
 }
