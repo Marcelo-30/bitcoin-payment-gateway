@@ -6,8 +6,11 @@ import com.bitcoinpaymentgateway.backend.dto.CreatePaymentRequest;
 import com.bitcoinpaymentgateway.backend.dto.PaymentResponse;
 import com.bitcoinpaymentgateway.backend.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -40,5 +43,19 @@ public class PaymentService {
         Payment savedPayment = paymentRepository.save(payment);
 
         return PaymentResponse.from(savedPayment);
+    }
+
+    @Transactional
+    public PaymentResponse getPayment(UUID paymentId) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,"Payment not found: " + paymentId));
+                
+             if (payment.getStatus() == PaymentStatus.PENDING
+                     && Instant.now().isAfter(payment.getExpiresAt())) {
+                payment.setStatus(PaymentStatus.EXPIRED);
+                paymentRepository.save(payment);
+            }
+
+        return PaymentResponse.from(payment);
     }
 }
