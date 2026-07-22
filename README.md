@@ -2,6 +2,15 @@
 
 A platform for creating payment orders, generating Bitcoin invoices, and monitoring transactions on a Bitcoin test network.
 
+## API Documentation
+
+The REST API is documented with OpenAPI (springdoc). Once the backend is running, the interactive Swagger UI is available at:
+
+* Swagger UI: http://localhost:8080/swagger-ui.html
+* OpenAPI spec (JSON): http://localhost:8080/v3/api-docs
+
+Every endpoint returns a standard error body on failure, with the fields `timestamp`, `status`, `error`, `message` and `path`.
+
 ## Project Goal
 
 The goal of this project is to build a payment platform that allows merchants to generate Bitcoin payment requests and monitor their status without using real funds during development.
