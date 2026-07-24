@@ -55,6 +55,43 @@ The goal of this project is to build a payment platform that allows merchants to
 * Docker Compose
 * GitHub Actions
 
+
+## Backend Environment Variables
+
+The backend supports the following environment variables:
+
+| Variable | Default value | Description |
+|---|---|---|
+| `DB_URL` | `jdbc:postgresql://127.0.0.1:5433/bitcoin_payment_gateway` | PostgreSQL connection URL. |
+| `DB_USERNAME` | `postgres` | PostgreSQL username. |
+| `DB_PASSWORD` | `postgres` | PostgreSQL password. |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated list of frontend origins allowed to access the backend API. |
+
+For local development, the backend allows the Vite frontend by default:
+
+```text
+http://localhost:5173
+````
+
+To configure a different allowed origin in PowerShell:
+
+```powershell
+$env:CORS_ALLOWED_ORIGINS="https://frontend.example.com"
+```
+
+To allow multiple origins, separate them with commas:
+
+```powershell
+$env:CORS_ALLOWED_ORIGINS="http://localhost:5173,https://frontend.example.com"
+```
+
+After setting the environment variable, start the backend in the same terminal:
+
+```powershell
+cd backend
+.\mvnw.cmd spring-boot:run
+```
+
 ## Project Status
 
 The project is currently under development.
