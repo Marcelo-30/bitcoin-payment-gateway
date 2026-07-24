@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { fetchHealth } from './api/health';
 import { apiClient } from './api/client';
+import { PaymentForm } from './components/PaymentForm';
 import './App.css';
 
 type HealthState =
@@ -42,6 +43,11 @@ function App() {
           <h2>Backend status</h2>
           <BackendStatus health={health} />
           <p className="card__meta">API base URL: {apiClient.baseUrl}</p>
+        </section>
+
+        <section className="card">
+          <h2>Create payment</h2>
+          <PaymentForm />
         </section>
       </main>
     </div>

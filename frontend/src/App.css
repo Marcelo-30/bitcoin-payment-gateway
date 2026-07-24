@@ -20,6 +20,12 @@
   opacity: 0.7;
 }
 
+.app__main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
 .card {
   border: 1px solid rgba(128, 128, 128, 0.25);
   border-radius: 12px;
@@ -52,5 +58,87 @@
 }
 
 .status--error {
+  color: #cf222e;
+}
+
+.payment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: 320px;
+}
+
+.payment-form label {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.payment-form input {
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid rgba(128, 128, 128, 0.4);
+  font-size: 1rem;
+}
+
+.payment-form input[aria-invalid='true'] {
+  border-color: #cf222e;
+}
+
+.payment-form button {
+  margin-top: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.payment-form button:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.field-error {
+  color: #cf222e;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.payment-details {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.4rem 1rem;
+  margin: 1.25rem 0 0;
+  font-size: 0.9rem;
+}
+
+.payment-details dt {
+  font-weight: 600;
+  opacity: 0.7;
+}
+
+.payment-details dd {
+  margin: 0;
+  word-break: break-all;
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.badge--pending {
+  background: rgba(191, 135, 0, 0.15);
+  color: #bf8700;
+}
+
+.badge--paid {
+  background: rgba(26, 127, 55, 0.15);
+  color: #1a7f37;
+}
+
+.badge--expired {
+  background: rgba(207, 34, 46, 0.15);
   color: #cf222e;
 }
