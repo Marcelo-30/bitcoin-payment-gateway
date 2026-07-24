@@ -2,6 +2,11 @@
 
 A platform for creating payment orders, generating Bitcoin invoices, and monitoring transactions on a Bitcoin test network.
 
+## Frontend
+
+The React + TypeScript frontend lives in [`frontend/`](frontend/README.md). See that
+README for setup and how to run it.
+
 ## API Documentation
 
 The REST API is documented with OpenAPI (springdoc). Once the backend is running, the interactive Swagger UI is available at:
