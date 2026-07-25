@@ -22,3 +22,7 @@ export interface Payment {
 export function createPayment(request: CreatePaymentRequest): Promise<Payment> {
   return apiClient.post<Payment>('/api/payments', request);
 }
+
+export function getPayment(id: string): Promise<Payment> {
+  return apiClient.get<Payment>(`/api/payments/${id}`);
+}

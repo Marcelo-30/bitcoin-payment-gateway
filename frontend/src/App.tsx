@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { Routes, Route } from 'react-router-dom';
 import { fetchHealth } from './api/health';
 import { apiClient } from './api/client';
 import { PaymentForm } from './components/PaymentForm';
+import { PaymentStatusPage } from './components/PaymentStatusPage';
 import './App.css';
 
 type HealthState =
@@ -9,7 +11,7 @@ type HealthState =
   | { kind: 'ok'; status: string; service: string }
   | { kind: 'error'; message: string };
 
-function App() {
+function Dashboard() {
   const [health, setHealth] = useState<HealthState>({ kind: 'loading' });
 
   useEffect(() => {
@@ -67,6 +69,15 @@ function BackendStatus({ health }: { health: HealthState }) {
     case 'error':
       return <p className="status status--error">Cannot reach backend: {health.message}</p>;
   }
+}
+
+function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<Dashboard />} />
+      <Route path="/payments/:paymentId" element={<PaymentStatusPage />} />
+    </Routes>
+  );
 }
 
 export default App;
