@@ -12,6 +12,16 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import com.bitcoinpaymentgateway.backend.error.ResourceNotFoundException;
+import com.bitcoinpaymentgateway.backend.dto.PaymentHistoryResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.eq;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -151,5 +161,165 @@ class PaymentServiceTest {
                 assertEquals(
                                 "Payment not found: " + id,
                                 exception.getMessage());
+        }
+        @Test
+        void getPaymentsWithoutStatusShouldUseFindAll() {
+                Payment payment = createHistoryPayment(
+                        PaymentStatus.PENDING,
+                        Instant.parse("2026-07-25T12:00:00Z")
+                );
+
+                Page<Payment> repositoryPage =
+                        new PageImpl<>(List.of(payment));
+
+                when(paymentRepository.findAll(any(Pageable.class)))
+                        .thenReturn(repositoryPage);
+
+                Page<PaymentHistoryResponse> result =
+                        paymentService.getPayments(0, 10, null);
+
+                ArgumentCaptor<Pageable> pageableCaptor =
+                        ArgumentCaptor.forClass(Pageable.class);
+
+                verify(paymentRepository)
+                        .findAll(pageableCaptor.capture());
+
+                verify(paymentRepository, never())
+                        .findByStatus(
+                                any(PaymentStatus.class),
+                                any(Pageable.class)
+                        );
+
+                assertEquals(1, result.getTotalElements());
+                assertEquals(0, pageableCaptor.getValue().getPageNumber());
+                assertEquals(10, pageableCaptor.getValue().getPageSize());
+        }
+
+        @Test
+        void getPaymentsWithStatusShouldUseStatusQuery() {
+                Payment payment = createHistoryPayment(
+                        PaymentStatus.PENDING,
+                        Instant.parse("2026-07-25T12:00:00Z")
+                );
+
+                Page<Payment> repositoryPage =
+                        new PageImpl<>(List.of(payment));
+
+                when(paymentRepository.findByStatus(
+                        eq(PaymentStatus.PENDING),
+                        any(Pageable.class)
+                )).thenReturn(repositoryPage);
+
+                Page<PaymentHistoryResponse> result =
+                        paymentService.getPayments(
+                                0,
+                                10,
+                                PaymentStatus.PENDING
+                        );
+
+                ArgumentCaptor<Pageable> pageableCaptor =
+                        ArgumentCaptor.forClass(Pageable.class);
+
+                verify(paymentRepository).findByStatus(
+                        eq(PaymentStatus.PENDING),
+                        pageableCaptor.capture()
+                );
+
+                verify(paymentRepository, never())
+                        .findAll(any(Pageable.class));
+
+                assertEquals(1, result.getTotalElements());
+                assertEquals(
+                        PaymentStatus.PENDING,
+                        result.getContent().get(0).status()
+                );
+        }
+
+        @Test
+        void getPaymentsShouldSortByCreatedAtDescending() {
+                when(paymentRepository.findAll(any(Pageable.class)))
+                        .thenReturn(Page.empty());
+
+                paymentService.getPayments(0, 10, null);
+
+                ArgumentCaptor<Pageable> pageableCaptor =
+                        ArgumentCaptor.forClass(Pageable.class);
+
+                verify(paymentRepository)
+                        .findAll(pageableCaptor.capture());
+
+                Pageable pageable = pageableCaptor.getValue();
+
+                Sort.Order createdAtOrder =
+                        pageable.getSort().getOrderFor("createdAt");
+
+                assertEquals(0, pageable.getPageNumber());
+                assertEquals(10, pageable.getPageSize());
+                assertNotNull(createdAtOrder);
+                assertEquals(
+                        Sort.Direction.DESC,
+                        createdAtOrder.getDirection()
+                );
+        }
+
+        @Test
+        void getPaymentsShouldMapEntitiesToDtos() {
+                Instant createdAt =
+                        Instant.parse("2026-07-25T12:00:00Z");
+
+                Payment payment = createHistoryPayment(
+                        PaymentStatus.PAID,
+                        createdAt
+                );
+
+                when(paymentRepository.findAll(any(Pageable.class)))
+                        .thenReturn(new PageImpl<>(List.of(payment)));
+
+                Page<PaymentHistoryResponse> result =
+                        paymentService.getPayments(0, 10, null);
+
+                PaymentHistoryResponse response =
+                        result.getContent().get(0);
+
+                assertEquals(payment.getId(), response.id());
+                assertEquals(payment.getAmountSats(), response.amountSats());
+                assertEquals(
+                        payment.getBitcoinAddress(),
+                        response.bitcoinAddress()
+                );
+                assertEquals(payment.getStatus(), response.status());
+                assertEquals(payment.getCreatedAt(), response.createdAt());
+                assertEquals(payment.getExpiresAt(), response.expiresAt());
+                assertEquals(payment.getPaidAt(), response.paidAt());
+        }
+
+        @Test
+        void getPaymentsShouldReturnEmptyPage() {
+                when(paymentRepository.findAll(any(Pageable.class)))
+                        .thenReturn(Page.empty());
+
+                Page<PaymentHistoryResponse> result =
+                        paymentService.getPayments(0, 10, null);
+
+                assertTrue(result.isEmpty());
+                assertEquals(0, result.getTotalElements());
+        }
+        private Payment createHistoryPayment(
+                PaymentStatus status,
+                Instant createdAt
+        ) {
+                return Payment.builder()
+                        .id(UUID.randomUUID())
+                        .amountSats(50_000L)
+                        .bitcoinAddress(TEST_ADDRESS)
+                        .status(status)
+                        .createdAt(createdAt)
+                        .expiresAt(createdAt.plusSeconds(900))
+                        .paidAt(
+                                status == PaymentStatus.PAID
+                                        ? createdAt.plusSeconds(60)
+                                        : null
+                        )
+                        .build();
         }
 }
