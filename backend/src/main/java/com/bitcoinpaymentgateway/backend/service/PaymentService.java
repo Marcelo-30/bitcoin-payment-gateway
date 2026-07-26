@@ -3,12 +3,17 @@ package com.bitcoinpaymentgateway.backend.service;
 import com.bitcoinpaymentgateway.backend.domain.Payment;
 import com.bitcoinpaymentgateway.backend.domain.PaymentStatus;
 import com.bitcoinpaymentgateway.backend.dto.CreatePaymentRequest;
+import com.bitcoinpaymentgateway.backend.dto.PaymentHistoryResponse;
 import com.bitcoinpaymentgateway.backend.dto.PaymentResponse;
 import com.bitcoinpaymentgateway.backend.error.ResourceNotFoundException;
 import com.bitcoinpaymentgateway.backend.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
 
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -58,5 +63,23 @@ public class PaymentService {
         }
 
         return PaymentResponse.from(payment);
+    }
+    @Transactional(readOnly = true)
+    public Page<PaymentHistoryResponse> getPayments(
+            int page,
+            int size,
+            PaymentStatus status
+    ) {
+        Pageable pageable = PageRequest.of(
+                page,
+                size,
+                Sort.by(Sort.Direction.DESC, "createdAt")
+        );
+
+        Page<Payment> payments = status == null
+                ? paymentRepository.findAll(pageable)
+                : paymentRepository.findByStatus(status, pageable);
+
+        return payments.map(PaymentHistoryResponse::from);
     }
 }
