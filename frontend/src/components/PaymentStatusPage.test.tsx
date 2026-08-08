@@ -39,6 +39,16 @@ beforeEach(() => {
   simulatePaymentMock.mockReset();
 });
 
+function mockClipboard(writeText = vi.fn().mockResolvedValue(undefined)) {
+  Object.defineProperty(navigator, 'clipboard', {
+    configurable: true,
+    value: {
+      writeText,
+    },
+  });
+  return writeText;
+}
+
 describe('PaymentStatusPage', () => {
   it('shows payment details once loaded', async () => {
     getPaymentMock.mockResolvedValue(samplePayment);
@@ -49,7 +59,47 @@ describe('PaymentStatusPage', () => {
       expect(screen.getByTestId('payment-id')).toHaveTextContent(samplePayment.id);
     });
     expect(screen.getByTestId('payment-status')).toHaveTextContent('PENDING');
+    expect(screen.getByTestId('bip21-uri')).toHaveTextContent(
+      'bitcoin:tb1qexampleaddress0000000000000000000?amount=0.0005',
+    );
+    expect(await screen.findByTestId('invoice-qr-code')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /create payment/i })).toHaveAttribute('href', '/');
+    expect(screen.getByRole('link', { name: /payment history/i })).toHaveAttribute(
+      'href',
+      '/#payment-history',
+    );
+    expect(screen.getByRole('link', { name: /open payment status page/i })).toHaveAttribute(
+      'href',
+      `/payments/${samplePayment.id}`,
+    );
     expect(screen.getByRole('button', { name: 'Simulate payment' })).toBeEnabled();
+  });
+
+  it('copies the complete payment link', async () => {
+    const user = userEvent.setup();
+    const writeTextMock = mockClipboard();
+    getPaymentMock.mockResolvedValue(samplePayment);
+
+    renderAtPaymentRoute(samplePayment.id);
+
+    await screen.findByTestId('payment-id');
+    await user.click(screen.getByRole('button', { name: /copy payment link/i }));
+
+    expect(writeTextMock).toHaveBeenCalledWith(`${window.location.origin}/payments/${samplePayment.id}`);
+    expect(screen.getByRole('status')).toHaveTextContent(/payment link copied/i);
+  });
+
+  it('shows an error when the payment link cannot be copied', async () => {
+    const user = userEvent.setup();
+    mockClipboard(vi.fn().mockRejectedValueOnce(new Error('denied')));
+    getPaymentMock.mockResolvedValue(samplePayment);
+
+    renderAtPaymentRoute(samplePayment.id);
+
+    await screen.findByTestId('payment-id');
+    await user.click(screen.getByRole('button', { name: /copy payment link/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not copy payment link/i);
   });
 
   it('simulates a pending payment and displays the paid result', async () => {
