@@ -104,6 +104,40 @@ public class PaymentController {
                 return ResponseEntity.ok(response);
         }
 
+        @PostMapping("/{id}/simulate-payment")
+        @Operation(
+                summary = "Simulate a payment",
+                description = "Marks a non-expired PENDING payment as PAID."
+        )
+        @ApiResponses({
+                @ApiResponse(
+                        responseCode = "200",
+                        description = "Payment simulated successfully",
+                        content = @Content(
+                                schema = @Schema(
+                                        implementation = PaymentResponse.class
+                                )
+                        )
+                ),
+                @ApiResponse(
+                        responseCode = "404",
+                        description = "Payment not found",
+                        content = @Content
+                ),
+                @ApiResponse(
+                        responseCode = "409",
+                        description = "Payment is expired or is not pending",
+                        content = @Content
+                )
+        })
+        public ResponseEntity<PaymentResponse> simulatePayment(
+                @PathVariable UUID id
+        ) {
+                return ResponseEntity.ok(
+                        paymentService.simulatePayment(id)
+                );
+        }
+
         @GetMapping
         @Operation(
                 summary = "Get payment history",

@@ -1,15 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { PaymentStatusPage } from './PaymentStatusPage';
-import { getPayment, type Payment } from '../api/payments';
+import { getPayment, simulatePayment, type Payment } from '../api/payments';
 import { ApiError } from '../api/client';
 
 vi.mock('../api/payments', () => ({
   getPayment: vi.fn(),
+  simulatePayment: vi.fn(),
 }));
 
 const getPaymentMock = vi.mocked(getPayment);
+const simulatePaymentMock = vi.mocked(simulatePayment);
 
 const samplePayment: Payment = {
   id: 'b1b827ea-7f47-4fca-a6ce-6753a4758c64',
@@ -33,6 +36,7 @@ function renderAtPaymentRoute(paymentId: string) {
 
 beforeEach(() => {
   getPaymentMock.mockReset();
+  simulatePaymentMock.mockReset();
 });
 
 describe('PaymentStatusPage', () => {
@@ -45,6 +49,50 @@ describe('PaymentStatusPage', () => {
       expect(screen.getByTestId('payment-id')).toHaveTextContent(samplePayment.id);
     });
     expect(screen.getByTestId('payment-status')).toHaveTextContent('PENDING');
+    expect(screen.getByRole('button', { name: 'Simulate payment' })).toBeEnabled();
+  });
+
+  it('simulates a pending payment and displays the paid result', async () => {
+    const user = userEvent.setup();
+    let resolveSimulation!: (payment: Payment) => void;
+    simulatePaymentMock.mockReturnValue(new Promise((resolve) => {
+      resolveSimulation = resolve;
+    }));
+    getPaymentMock.mockResolvedValue(samplePayment);
+    renderAtPaymentRoute(samplePayment.id);
+
+    const button = await screen.findByRole('button', { name: 'Simulate payment' });
+    await user.click(button);
+    expect(simulatePaymentMock).toHaveBeenCalledWith(samplePayment.id);
+    expect(button).toBeDisabled();
+    expect(button).toHaveTextContent('Simulating payment');
+
+    resolveSimulation({
+      ...samplePayment,
+      status: 'PAID',
+      paidAt: '2026-07-23T10:01:00Z',
+    });
+    await waitFor(() => expect(screen.getByTestId('payment-status')).toHaveTextContent('PAID'));
+    expect(screen.getByTestId('payment-paid-at')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /simulate payment/i })).not.toBeInTheDocument();
+  });
+
+  it.each(['PAID', 'EXPIRED'] as const)('does not show simulation for %s payments', async (status) => {
+    getPaymentMock.mockResolvedValue({ ...samplePayment, status });
+    renderAtPaymentRoute(samplePayment.id);
+    await screen.findByTestId('payment-status');
+    expect(screen.queryByRole('button', { name: /simulate payment/i })).not.toBeInTheDocument();
+  });
+
+  it('shows an error when simulation fails and allows retry', async () => {
+    const user = userEvent.setup();
+    getPaymentMock.mockResolvedValue(samplePayment);
+    simulatePaymentMock.mockRejectedValue(new ApiError(409, 'Payment expired'));
+    renderAtPaymentRoute(samplePayment.id);
+
+    await user.click(await screen.findByRole('button', { name: 'Simulate payment' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/payment expired/i);
+    expect(screen.getByRole('button', { name: 'Simulate payment' })).toBeEnabled();
   });
 
   it('shows a not-found message for a 404', async () => {

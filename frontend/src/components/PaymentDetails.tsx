@@ -31,6 +31,13 @@ export function PaymentDetails({ payment }: { payment: Payment }) {
 
       <dt>Expires at</dt>
       <dd data-testid="payment-expires">{formatDate(payment.expiresAt)}</dd>
+
+      {payment.paidAt && (
+        <>
+          <dt>Paid at</dt>
+          <dd data-testid="payment-paid-at">{formatDate(payment.paidAt)}</dd>
+        </>
+      )}
     </dl>
   );
 }

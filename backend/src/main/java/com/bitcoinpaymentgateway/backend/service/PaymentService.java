@@ -6,6 +6,7 @@ import com.bitcoinpaymentgateway.backend.dto.CreatePaymentRequest;
 import com.bitcoinpaymentgateway.backend.dto.PaymentHistoryResponse;
 import com.bitcoinpaymentgateway.backend.dto.PaymentResponse;
 import com.bitcoinpaymentgateway.backend.error.ResourceNotFoundException;
+import com.bitcoinpaymentgateway.backend.error.PaymentStateConflictException;
 import com.bitcoinpaymentgateway.backend.repository.PaymentRepository;
 import lombok.RequiredArgsConstructor;
 
@@ -56,14 +57,45 @@ public class PaymentService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Payment not found: " + paymentId));
 
-        if (payment.getStatus() == PaymentStatus.PENDING
-                && Instant.now().isAfter(payment.getExpiresAt())) {
-            payment.setStatus(PaymentStatus.EXPIRED);
-            paymentRepository.save(payment);
-        }
+        expireIfNeeded(payment, Instant.now());
 
         return PaymentResponse.from(payment);
     }
+
+    @Transactional(noRollbackFor = PaymentStateConflictException.class)
+    public PaymentResponse simulatePayment(UUID paymentId) {
+        Payment payment = paymentRepository.findByIdForUpdate(paymentId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Payment not found: " + paymentId));
+
+        Instant now = Instant.now();
+        if (expireIfNeeded(payment, now)) {
+            throw new PaymentStateConflictException(
+                    "Expired payment cannot be simulated: " + paymentId);
+        }
+
+        if (payment.getStatus() != PaymentStatus.PENDING) {
+            throw new PaymentStateConflictException(
+                    "Only pending payments can be simulated: " + paymentId);
+        }
+
+        payment.setStatus(PaymentStatus.PAID);
+        payment.setPaidAt(now);
+        Payment savedPayment = paymentRepository.save(payment);
+
+        return PaymentResponse.from(savedPayment);
+    }
+
+    private boolean expireIfNeeded(Payment payment, Instant now) {
+        if (payment.getStatus() == PaymentStatus.PENDING
+                && now.isAfter(payment.getExpiresAt())) {
+            payment.setStatus(PaymentStatus.EXPIRED);
+            paymentRepository.save(payment);
+            return true;
+        }
+        return payment.getStatus() == PaymentStatus.EXPIRED;
+    }
+
     @Transactional(readOnly = true)
     public Page<PaymentHistoryResponse> getPayments(
             int page,

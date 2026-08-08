@@ -109,6 +109,18 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(PaymentStateConflictException.class)
+    public ResponseEntity<ApiError> handlePaymentStateConflict(
+            PaymentStateConflictException exception,
+            HttpServletRequest request
+    ) {
+        return build(
+                HttpStatus.CONFLICT,
+                exception.getMessage(),
+                request
+        );
+    }
+
     /**
      * Anything not handled above: log it and return an opaque 500.
      */

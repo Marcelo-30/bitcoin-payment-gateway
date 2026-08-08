@@ -120,6 +120,18 @@
   word-break: break-all;
 }
 
+.simulate-payment {
+  margin-top: 1rem;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.simulate-payment:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
 .badge {
   display: inline-block;
   padding: 0.1rem 0.5rem;

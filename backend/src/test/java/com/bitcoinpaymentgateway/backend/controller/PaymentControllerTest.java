@@ -3,6 +3,7 @@ package com.bitcoinpaymentgateway.backend.controller;
 import com.bitcoinpaymentgateway.backend.domain.PaymentStatus;
 import com.bitcoinpaymentgateway.backend.dto.PaymentResponse;
 import com.bitcoinpaymentgateway.backend.error.ResourceNotFoundException;
+import com.bitcoinpaymentgateway.backend.error.PaymentStateConflictException;
 import com.bitcoinpaymentgateway.backend.service.PaymentService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -151,6 +152,55 @@ class PaymentControllerTest {
                                 .andExpect(jsonPath("$.error").value("Not Found"))
                                 .andExpect(jsonPath("$.message")
                                                 .value("Payment not found: " + paymentId));
+        }
+
+        @Test
+        void shouldSimulatePayment() throws Exception {
+                UUID paymentId = UUID.randomUUID();
+                Instant createdAt = Instant.parse("2026-07-21T17:00:00Z");
+                Instant paidAt = createdAt.plusSeconds(60);
+                PaymentResponse response = new PaymentResponse(
+                                paymentId, 50_000L, "tb1qaddress",
+                                PaymentStatus.PAID, createdAt,
+                                createdAt.plusSeconds(900), paidAt);
+                when(paymentService.simulatePayment(paymentId)).thenReturn(response);
+
+                mockMvc.perform(post("/api/payments/{id}/simulate-payment", paymentId))
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.status").value("PAID"))
+                                .andExpect(jsonPath("$.paidAt").value(paidAt.toString()));
+                verify(paymentService).simulatePayment(paymentId);
+        }
+
+        @Test
+        void shouldReturnNotFoundWhenSimulatedPaymentDoesNotExist() throws Exception {
+                UUID id = UUID.randomUUID();
+                when(paymentService.simulatePayment(id)).thenThrow(
+                                new ResourceNotFoundException("Payment not found: " + id));
+
+                mockMvc.perform(post("/api/payments/{id}/simulate-payment", id))
+                                .andExpect(status().isNotFound());
+        }
+
+        @Test
+        void shouldReturnConflictWhenSimulatedPaymentIsExpired() throws Exception {
+                assertSimulationConflict("Expired payment cannot be simulated");
+        }
+
+        @Test
+        void shouldReturnConflictWhenSimulatedPaymentIsAlreadyPaid() throws Exception {
+                assertSimulationConflict("Only pending payments can be simulated");
+        }
+
+        private void assertSimulationConflict(String message) throws Exception {
+                UUID id = UUID.randomUUID();
+                when(paymentService.simulatePayment(id)).thenThrow(
+                                new PaymentStateConflictException(message));
+
+                mockMvc.perform(post("/api/payments/{id}/simulate-payment", id))
+                                .andExpect(status().isConflict())
+                                .andExpect(jsonPath("$.status").value(409))
+                                .andExpect(jsonPath("$.message").value(message));
         }
         @Test
         void shouldReturnPaginatedPaymentsWithDefaultParameters()
