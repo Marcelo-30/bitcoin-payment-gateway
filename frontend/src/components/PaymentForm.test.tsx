@@ -71,6 +71,11 @@ describe('PaymentForm', () => {
     expect(screen.getByTestId('payment-amount')).toHaveTextContent('50,000 sats');
     expect(screen.getByTestId('payment-status')).toHaveTextContent('PENDING');
     expect(screen.getByTestId('payment-expires')).not.toBeEmptyDOMElement();
+    expect(screen.getByTestId('bip21-uri')).toHaveTextContent(
+      'bitcoin:tb1qexampleaddress0000000000000000000?amount=0.0005',
+    );
+    expect(screen.getByTestId('invoice-amount')).toHaveTextContent('0.0005 BTC');
+    expect(await screen.findByTestId('invoice-qr-code')).toBeInTheDocument();
   });
 
   it('shows the backend validation error message on failure', async () => {

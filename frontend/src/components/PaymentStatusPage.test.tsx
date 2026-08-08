@@ -49,6 +49,10 @@ describe('PaymentStatusPage', () => {
       expect(screen.getByTestId('payment-id')).toHaveTextContent(samplePayment.id);
     });
     expect(screen.getByTestId('payment-status')).toHaveTextContent('PENDING');
+    expect(screen.getByTestId('bip21-uri')).toHaveTextContent(
+      'bitcoin:tb1qexampleaddress0000000000000000000?amount=0.0005',
+    );
+    expect(await screen.findByTestId('invoice-qr-code')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Simulate payment' })).toBeEnabled();
   });
 

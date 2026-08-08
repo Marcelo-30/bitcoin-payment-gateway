@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import { fetchHealth } from './api/health';
 import { apiClient } from './api/client';
 import { PaymentForm } from './components/PaymentForm';
+import { PaymentHistoryDashboard } from './components/PaymentHistoryDashboard';
 import { PaymentStatusPage } from './components/PaymentStatusPage';
 import './App.css';
 
@@ -51,6 +52,8 @@ function Dashboard() {
           <h2>Create payment</h2>
           <PaymentForm />
         </section>
+
+        <PaymentHistoryDashboard />
       </main>
     </div>
   );
