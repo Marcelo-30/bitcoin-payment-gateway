@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { ApiError } from '../api/client';
-import { getPayment, type Payment } from '../api/payments';
+import { getPayment, simulatePayment, type Payment } from '../api/payments';
 import { PaymentDetails } from './PaymentDetails';
 
 const POLL_INTERVAL_MS = 3000;
@@ -15,6 +15,8 @@ type State =
 export function PaymentStatusPage() {
   const { paymentId } = useParams<{ paymentId: string }>();
   const [state, setState] = useState<State>({ kind: 'loading' });
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [simulationError, setSimulationError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!paymentId) return;
@@ -54,6 +56,24 @@ export function PaymentStatusPage() {
     };
   }, [paymentId]);
 
+  async function handleSimulation() {
+    if (!paymentId || state.kind !== 'loaded'
+      || state.payment.status !== 'PENDING' || isSimulating) return;
+
+    setIsSimulating(true);
+    setSimulationError(null);
+    try {
+      const payment = await simulatePayment(paymentId);
+      setState({ kind: 'loaded', payment });
+    } catch (err: unknown) {
+      setSimulationError(
+        err instanceof Error ? err.message : 'Something went wrong',
+      );
+    } finally {
+      setIsSimulating(false);
+    }
+  }
+
   switch (state.kind) {
     case 'loading':
       return <p className="status status--loading" role="status">Loading payment…</p>;
@@ -62,6 +82,25 @@ export function PaymentStatusPage() {
     case 'error':
       return <p className="status status--error" role="alert">Cannot reach backend: {state.message}</p>;
     case 'loaded':
-      return <PaymentDetails payment={state.payment} />;
+      return (
+        <>
+          <PaymentDetails payment={state.payment} />
+          {state.payment.status === 'PENDING' && (
+            <button
+              type="button"
+              className="simulate-payment"
+              disabled={isSimulating}
+              onClick={handleSimulation}
+            >
+              {isSimulating ? 'Simulating payment...' : 'Simulate payment'}
+            </button>
+          )}
+          {simulationError && (
+            <p className="status status--error" role="alert">
+              Could not simulate payment: {simulationError}
+            </p>
+          )}
+        </>
+      );
   }
 }

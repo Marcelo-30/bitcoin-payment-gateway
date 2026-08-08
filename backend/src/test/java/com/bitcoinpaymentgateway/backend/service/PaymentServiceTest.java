@@ -12,6 +12,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import com.bitcoinpaymentgateway.backend.error.ResourceNotFoundException;
+import com.bitcoinpaymentgateway.backend.error.PaymentStateConflictException;
 import com.bitcoinpaymentgateway.backend.dto.PaymentHistoryResponse;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -161,6 +162,83 @@ class PaymentServiceTest {
                 assertEquals(
                                 "Payment not found: " + id,
                                 exception.getMessage());
+        }
+
+        @Test
+        void shouldSimulatePendingPayment() {
+                UUID id = UUID.randomUUID();
+                Payment payment = createSimulatablePayment(id);
+                when(paymentRepository.findByIdForUpdate(id)).thenReturn(Optional.of(payment));
+                when(paymentRepository.save(payment)).thenReturn(payment);
+
+                Instant before = Instant.now();
+                PaymentResponse response = paymentService.simulatePayment(id);
+
+                assertEquals(PaymentStatus.PAID, response.status());
+                assertNotNull(response.paidAt());
+                assertTrue(!response.paidAt().isBefore(before));
+                assertEquals(PaymentStatus.PAID, payment.getStatus());
+                verify(paymentRepository).findByIdForUpdate(id);
+                verify(paymentRepository).save(payment);
+        }
+
+        @Test
+        void shouldThrowWhenSimulatedPaymentIsMissing() {
+                UUID id = UUID.randomUUID();
+                when(paymentRepository.findByIdForUpdate(id)).thenReturn(Optional.empty());
+
+                assertThrows(
+                        ResourceNotFoundException.class,
+                        () -> paymentService.simulatePayment(id)
+                );
+                verify(paymentRepository, never()).save(any());
+        }
+
+        @Test
+        void shouldRejectExpiredPayment() {
+                UUID id = UUID.randomUUID();
+                Payment payment = createSimulatablePayment(id);
+                payment.setStatus(PaymentStatus.EXPIRED);
+                when(paymentRepository.findByIdForUpdate(id)).thenReturn(Optional.of(payment));
+
+                assertThrows(
+                        PaymentStateConflictException.class,
+                        () -> paymentService.simulatePayment(id)
+                );
+                assertNull(payment.getPaidAt());
+                verify(paymentRepository, never()).save(any());
+        }
+
+        @Test
+        void shouldExpireAndRejectPendingPaymentPastExpiration() {
+                UUID id = UUID.randomUUID();
+                Payment payment = createSimulatablePayment(id);
+                payment.setExpiresAt(Instant.now().minusSeconds(1));
+                when(paymentRepository.findByIdForUpdate(id)).thenReturn(Optional.of(payment));
+                when(paymentRepository.save(payment)).thenReturn(payment);
+
+                assertThrows(
+                        PaymentStateConflictException.class,
+                        () -> paymentService.simulatePayment(id)
+                );
+                assertEquals(PaymentStatus.EXPIRED, payment.getStatus());
+                assertNull(payment.getPaidAt());
+                verify(paymentRepository).save(payment);
+        }
+
+        @Test
+        void shouldRejectAlreadyPaidPayment() {
+                UUID id = UUID.randomUUID();
+                Payment payment = createSimulatablePayment(id);
+                payment.setStatus(PaymentStatus.PAID);
+                payment.setPaidAt(Instant.now().minusSeconds(1));
+                when(paymentRepository.findByIdForUpdate(id)).thenReturn(Optional.of(payment));
+
+                assertThrows(
+                        PaymentStateConflictException.class,
+                        () -> paymentService.simulatePayment(id)
+                );
+                verify(paymentRepository, never()).save(any());
         }
         @Test
         void getPaymentsWithoutStatusShouldUseFindAll() {
@@ -320,6 +398,18 @@ class PaymentServiceTest {
                                         ? createdAt.plusSeconds(60)
                                         : null
                         )
+                        .build();
+        }
+
+        private Payment createSimulatablePayment(UUID id) {
+                Instant createdAt = Instant.now();
+                return Payment.builder()
+                        .id(id)
+                        .amountSats(50_000L)
+                        .bitcoinAddress(TEST_ADDRESS)
+                        .status(PaymentStatus.PENDING)
+                        .createdAt(createdAt)
+                        .expiresAt(createdAt.plusSeconds(900))
                         .build();
         }
 }
