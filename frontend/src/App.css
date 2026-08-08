@@ -20,6 +20,29 @@
   opacity: 0.7;
 }
 
+.page-navigation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.page-navigation a,
+.secondary-link {
+  border: 1px solid rgba(128, 128, 128, 0.35);
+  border-radius: 6px;
+  color: inherit;
+  display: inline-flex;
+  padding: 0.4rem 0.75rem;
+  text-decoration: none;
+}
+
+.page-navigation a:hover,
+.secondary-link:hover {
+  border-color: rgba(26, 127, 55, 0.45);
+  color: #1a7f37;
+}
+
 .app__main {
   display: flex;
   flex-direction: column;
@@ -129,6 +152,21 @@
 .payment-details dd {
   margin: 0;
   word-break: break-all;
+}
+
+.payment-status-page {
+  margin: 0 auto;
+  max-width: 720px;
+  padding: 2rem 1rem;
+  text-align: left;
+}
+
+.payment-status-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
 }
 
 .payment-history {

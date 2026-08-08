@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom';
 import { PaymentForm } from './PaymentForm';
 import { validateAmount } from '../lib/validateAmount';
 import { createPayment, type Payment } from '../api/payments';
@@ -26,6 +27,22 @@ beforeEach(() => {
   createPaymentMock.mockReset();
 });
 
+function PaymentRouteProbe() {
+  const { paymentId } = useParams<{ paymentId: string }>();
+  return <p data-testid="payment-route">Payment route: {paymentId}</p>;
+}
+
+function renderPaymentForm() {
+  return render(
+    <MemoryRouter initialEntries={['/']}>
+      <Routes>
+        <Route path="/" element={<PaymentForm />} />
+        <Route path="/payments/:paymentId" element={<PaymentRouteProbe />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+
 describe('validateAmount', () => {
   it('rejects empty, non-numeric and non-positive values', () => {
     expect(validateAmount('')).toMatch(/required/i);
@@ -41,47 +58,39 @@ describe('validateAmount', () => {
 
 describe('PaymentForm', () => {
   it('renders the amount input', () => {
-    render(<PaymentForm />);
+    renderPaymentForm();
     expect(screen.getByLabelText(/amount \(satoshis\)/i)).toBeInTheDocument();
   });
 
   it('shows a validation error and does not call the API for invalid input', async () => {
     const user = userEvent.setup();
-    render(<PaymentForm />);
+    renderPaymentForm();
 
     await user.click(screen.getByRole('button', { name: /create payment/i }));
 
     expect(screen.getByRole('alert')).toHaveTextContent(/required/i);
     expect(createPaymentMock).not.toHaveBeenCalled();
+    expect(screen.queryByTestId('payment-route')).not.toBeInTheDocument();
   });
 
-  it('submits and displays the created payment details', async () => {
+  it('submits and navigates to the created payment status route', async () => {
     createPaymentMock.mockResolvedValue(samplePayment);
     const user = userEvent.setup();
-    render(<PaymentForm />);
+    renderPaymentForm();
 
     await user.type(screen.getByLabelText(/amount \(satoshis\)/i), '50000');
     await user.click(screen.getByRole('button', { name: /create payment/i }));
 
     await waitFor(() => {
-      expect(screen.getByTestId('payment-id')).toHaveTextContent(samplePayment.id);
+      expect(screen.getByTestId('payment-route')).toHaveTextContent(samplePayment.id);
     });
     expect(createPaymentMock).toHaveBeenCalledWith({ amountSats: 50000 });
-    expect(screen.getByTestId('payment-address')).toHaveTextContent(samplePayment.bitcoinAddress);
-    expect(screen.getByTestId('payment-amount')).toHaveTextContent('50,000 sats');
-    expect(screen.getByTestId('payment-status')).toHaveTextContent('PENDING');
-    expect(screen.getByTestId('payment-expires')).not.toBeEmptyDOMElement();
-    expect(screen.getByTestId('bip21-uri')).toHaveTextContent(
-      'bitcoin:tb1qexampleaddress0000000000000000000?amount=0.0005',
-    );
-    expect(screen.getByTestId('invoice-amount')).toHaveTextContent('0.0005 BTC');
-    expect(await screen.findByTestId('invoice-qr-code')).toBeInTheDocument();
   });
 
-  it('shows the backend validation error message on failure', async () => {
+  it('shows the backend validation error message on failure without navigating', async () => {
     createPaymentMock.mockRejectedValue(new ApiError(400, 'amountSats must be greater than zero'));
     const user = userEvent.setup();
-    render(<PaymentForm />);
+    renderPaymentForm();
 
     await user.type(screen.getByLabelText(/amount \(satoshis\)/i), '5');
     await user.click(screen.getByRole('button', { name: /create payment/i }));
@@ -89,6 +98,7 @@ describe('PaymentForm', () => {
     await waitFor(() => {
       expect(screen.getByRole('alert')).toHaveTextContent(/greater than zero/i);
     });
-    expect(screen.queryByTestId('payment-id')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('payment-route')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /create payment/i })).toBeEnabled();
   });
 });

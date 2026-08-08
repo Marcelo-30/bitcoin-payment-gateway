@@ -1,15 +1,15 @@
 import { useState, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { ApiError } from '../api/client';
-import { createPayment, type Payment } from '../api/payments';
+import { createPayment } from '../api/payments';
 import { validateAmount } from '../lib/validateAmount';
-import { PaymentDetails } from './PaymentDetails';
 
 export function PaymentForm() {
+  const navigate = useNavigate();
   const [amount, setAmount] = useState('');
   const [validationError, setValidationError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [payment, setPayment] = useState<Payment | null>(null);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -22,10 +22,9 @@ export function PaymentForm() {
     }
 
     setLoading(true);
-    setPayment(null);
     try {
       const created = await createPayment({ amountSats: Number(amount) });
-      setPayment(created);
+      navigate(`/payments/${created.id}`);
     } catch (err: unknown) {
       setSubmitError(
         err instanceof ApiError || err instanceof Error ? err.message : 'Something went wrong',
@@ -74,8 +73,6 @@ export function PaymentForm() {
           {submitError}
         </p>
       )}
-
-      {payment && <PaymentDetails payment={payment} />}
     </div>
   );
 }

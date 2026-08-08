@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { ApiError } from '../api/client';
 import { getPayment, simulatePayment, type Payment } from '../api/payments';
 import { PaymentDetails } from './PaymentDetails';
@@ -17,6 +17,7 @@ export function PaymentStatusPage() {
   const [state, setState] = useState<State>({ kind: 'loading' });
   const [isSimulating, setIsSimulating] = useState(false);
   const [simulationError, setSimulationError] = useState<string | null>(null);
+  const [copyStatus, setCopyStatus] = useState<'idle' | 'copied' | 'error'>('idle');
 
   useEffect(() => {
     if (!paymentId) return;
@@ -74,17 +75,72 @@ export function PaymentStatusPage() {
     }
   }
 
+  async function copyPaymentLink() {
+    if (!paymentId || !navigator.clipboard) {
+      setCopyStatus('error');
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/payments/${paymentId}`);
+      setCopyStatus('copied');
+    } catch {
+      setCopyStatus('error');
+    }
+  }
+
+  const navigation = (
+    <nav className="page-navigation" aria-label="Payment navigation">
+      <Link to="/">Create payment</Link>
+      <Link to="/#payment-history">Payment history</Link>
+    </nav>
+  );
+
   switch (state.kind) {
     case 'loading':
-      return <p className="status status--loading" role="status">Loading payment…</p>;
+      return (
+        <div className="payment-status-page">
+          {navigation}
+          <p className="status status--loading" role="status">Loading payment…</p>
+        </div>
+      );
     case 'not-found':
-      return <p className="status status--error" role="alert">Payment not found.</p>;
+      return (
+        <div className="payment-status-page">
+          {navigation}
+          <p className="status status--error" role="alert">Payment not found.</p>
+        </div>
+      );
     case 'error':
-      return <p className="status status--error" role="alert">Cannot reach backend: {state.message}</p>;
+      return (
+        <div className="payment-status-page">
+          {navigation}
+          <p className="status status--error" role="alert">Cannot reach backend: {state.message}</p>
+        </div>
+      );
     case 'loaded':
       return (
-        <>
+        <div className="payment-status-page">
+          {navigation}
           <PaymentDetails payment={state.payment} />
+          <div className="payment-status-actions">
+            <button type="button" className="secondary-button" onClick={copyPaymentLink}>
+              Copy payment link
+            </button>
+            <Link className="secondary-link" to={`/payments/${state.payment.id}`}>
+              Open payment status page
+            </Link>
+          </div>
+          {copyStatus === 'copied' && (
+            <p className="status status--ok" role="status">
+              Payment link copied.
+            </p>
+          )}
+          {copyStatus === 'error' && (
+            <p className="status status--error" role="alert">
+              Could not copy payment link.
+            </p>
+          )}
           {state.payment.status === 'PENDING' && (
             <button
               type="button"
@@ -100,7 +156,7 @@ export function PaymentStatusPage() {
               Could not simulate payment: {simulationError}
             </p>
           )}
-        </>
+        </div>
       );
   }
 }

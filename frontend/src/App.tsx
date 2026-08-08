@@ -39,6 +39,10 @@ function Dashboard() {
       <header className="app__header">
         <h1>Bitcoin Payment Gateway</h1>
         <p className="app__subtitle">Merchant dashboard</p>
+        <nav className="page-navigation" aria-label="Dashboard navigation">
+          <a href="#payment-creation">Create payment</a>
+          <a href="#payment-history">Payment history</a>
+        </nav>
       </header>
 
       <main className="app__main">
@@ -48,7 +52,7 @@ function Dashboard() {
           <p className="card__meta">API base URL: {apiClient.baseUrl}</p>
         </section>
 
-        <section className="card">
+        <section className="card" id="payment-creation">
           <h2>Create payment</h2>
           <PaymentForm />
         </section>

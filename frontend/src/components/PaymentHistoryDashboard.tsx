@@ -64,7 +64,7 @@ export function PaymentHistoryDashboard() {
   }
 
   return (
-    <section className="payment-history" aria-labelledby="payment-history-title">
+    <section className="payment-history" id="payment-history" aria-labelledby="payment-history-title">
       <div className="payment-history__header">
         <div>
           <h2 id="payment-history-title">Payment history</h2>
